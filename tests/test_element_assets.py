@@ -131,6 +131,18 @@ class PlanTests(unittest.TestCase):
         with self.assertRaises(assets.AssetError):
             assets.load_plan(self.write({"elements": [{"id": "a"}]}))
 
+    def test_slot_anchor_is_validated(self):
+        with self.assertRaises(assets.AssetError):
+            assets.load_plan(self.write({"elements": [{"id": "a", "description": "x", "slot": {"bbox_px": [0, 0, 10, 10], "anchor": "middle"}}]}))
+
+    def test_anchor_keeps_a_standing_figure_on_the_slot_floor(self):
+        slot = (100, 100, 300, 500)  # 200 x 400
+        aspect = (100, 100)           # a square subject is limited by the width: 200 x 200
+        self.assertEqual(assets.fit_box(slot, aspect, "contain")[1], 200)                    # centred
+        self.assertEqual(assets.fit_box(slot, aspect, "contain", "bottom")[1], 300)          # feet on y=500
+        self.assertEqual(assets.fit_box(slot, aspect, "contain", "top")[1], 100)
+        self.assertEqual(assets.fit_box(slot, aspect, "contain", "bottom")[1] + 200, 500)
+
     def test_slot_must_be_a_real_box(self):
         with self.assertRaises(assets.AssetError):
             assets.load_plan(self.write({"elements": [{"id": "a", "description": "x", "slot": {"bbox_px": [10, 10, 5, 50]}}]}))
@@ -276,6 +288,24 @@ class PipelineTests(unittest.TestCase):
         code, cut, _ = run("cutout", "--workdir", self.wd, "--sheet-id", "sheet-01", "--key", "#00FF00")
         self.assertEqual(cut["key_source"], "forced")
         self.assertEqual(cut["key_used"], "#00FF00")
+
+    def test_place_honours_the_bottom_anchor(self):
+        plan = json.loads((self.wd / "elements.json").read_text())
+        for element in plan["elements"][:3]:
+            element["slot"]["anchor"] = "bottom"
+            element["slot"]["bbox_px"] = [element["slot"]["bbox_px"][0], 100, element["slot"]["bbox_px"][2], 900]  # much taller than the art
+        (self.wd / "elements.json").write_text(json.dumps(plan))
+        run("prompt", "--workdir", self.wd, "--canvas", "1536x1024", "--key", "#00FF00")
+        self.make_sheet(["ellipse", "rect", "ellipse"])
+        run("cutout", "--workdir", self.wd, "--sheet-id", "sheet-01")
+        run("split", "--workdir", self.wd, "--sheet-id", "sheet-01")
+        code, placed, _ = run("place", "--workdir", self.wd, "--backend", "drawio")
+        manifest = {e["id"]: e for e in json.loads((self.wd / "manifest.json").read_text())["elements"]}
+        for call in placed["calls"][:3]:
+            arguments, entry = call["arguments"], manifest[call["element"]]
+            scale = arguments["height"] / entry["size_px"][1]
+            visible_bottom = arguments["y"] + entry["visible_bbox_px"][3] * scale
+            self.assertAlmostEqual(visible_bottom, 900 * placed["canvas"][1] / 1500, delta=1.5, msg=call["element"])
 
     def test_a_clipped_element_fails_the_split_and_qa(self):
         run("prompt", "--workdir", self.wd, "--canvas", "1536x1024", "--key", "#00FF00")

@@ -37,6 +37,8 @@ IMAGEGEN = SCRIPT_DIR / "imagegen.mjs"
 
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
 ROUTES = {"generate", "extract", "native", "data"}
+ANCHORS = {"center", "bottom", "top"}
+ANCHORS = {"center", "bottom", "top"}
 GRIDS = {1: (1, 1), 2: (2, 1), 3: (3, 1), 4: (2, 2), 5: (3, 2), 6: (3, 2), 7: (4, 2), 8: (4, 2), 9: (3, 3)}
 KEY_CANDIDATES = ["#00FF00", "#FF00FF", "#00FFFF", "#FFFF00", "#FF8000", "#0000FF"]
 DEFAULT_RASTER_REASON = (
@@ -143,6 +145,10 @@ def load_plan(path):
             if not (isinstance(box, list) and len(box) == 4 and all(isinstance(v, (int, float)) for v in box)
                     and box[2] > box[0] and box[3] > box[1]):
                 raise AssetError(f"{element_id}: slot.bbox_px must be [x0, y0, x1, y1] with x1>x0 and y1>y0")
+            if slot.get("anchor", "center") not in ANCHORS:
+                raise AssetError(f"{element_id}: slot.anchor must be one of {sorted(ANCHORS)}")
+            if slot.get("anchor", "center") not in ANCHORS:
+                raise AssetError(f"{element_id}: slot.anchor must be one of {sorted(ANCHORS)}")
     figure = plan.setdefault("figure", {})
     figure.setdefault("target_dpi", 300)
     size = figure.get("ref_size_px")
@@ -763,14 +769,16 @@ def command_qa(args):
 # --------------------------------------------------------------------------------------------------
 # place
 # --------------------------------------------------------------------------------------------------
-def fit_box(slot, aspect, mode):
+def fit_box(slot, aspect, mode, anchor="center"):
     x0, y0, x1, y1 = slot
     width, height = x1 - x0, y1 - y0
     if mode == "fill":
         return x0, y0, width, height
     scale = min(width / aspect[0], height / aspect[1])
     placed_w, placed_h = aspect[0] * scale, aspect[1] * scale
-    return x0 + (width - placed_w) / 2, y0 + (height - placed_h) / 2, placed_w, placed_h
+    # A standing figure keeps its feet on the slot floor, a hanging one its top edge, whatever its aspect ratio.
+    top = y0 + (height - placed_h) if anchor == "bottom" else y0 if anchor == "top" else y0 + (height - placed_h) / 2
+    return x0 + (width - placed_w) / 2, top, placed_w, placed_h
 
 
 def command_place(args):
@@ -801,7 +809,7 @@ def command_place(args):
         aspect = (visible[2] - visible[0], visible[3] - visible[1])
         # Place the tight visible region inside the slot, then grow the box to include the transparent padding.
         x0, y0, x1, y1 = element["slot"]["bbox_px"]
-        left, top, vis_w, vis_h = fit_box((x0 * scale_x, y0 * scale_y, x1 * scale_x, y1 * scale_y), aspect, args.fit)
+        left, top, vis_w, vis_h = fit_box((x0 * scale_x, y0 * scale_y, x1 * scale_x, y1 * scale_y), aspect, args.fit, element["slot"].get("anchor", "center"))
         pad_scale_x, pad_scale_y = vis_w / aspect[0], vis_h / aspect[1]
         full_w, full_h = entry["size_px"][0] * pad_scale_x, entry["size_px"][1] * pad_scale_y
         full_left, full_top = left - visible[0] * pad_scale_x, top - visible[1] * pad_scale_y

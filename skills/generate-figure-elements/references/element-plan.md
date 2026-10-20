@@ -45,6 +45,7 @@ Each element:
 | `view` | camera or pose: front, three-quarter facing left, isometric |
 | `must_show` / `must_not_contain` | lists. Always forbid text and arrows unless a part is genuinely needed |
 | `slot.bbox_px` | `[x0, y0, x1, y1]` in the approved image where the Drawer will put it. Required for `place` |
+| `slot.anchor` | `center` (default), `bottom` or `top`. A figure standing on a pedestal or floor should be `bottom` with the slot floor at the pedestal line, so every figure keeps its feet there whatever its aspect ratio |
 | `width_mm` | overrides the width derived from the slot |
 | `sheet` | group name, or `solo` for one element on its own sheet (hero elements, retries) |
 | `alt_text` | accessibility text for the picture object |
@@ -52,7 +53,7 @@ Each element:
 
 ## Getting slots from the approved image
 
-Inspect the overview at full resolution and read each object's bounding box in its own pixels; round outward to a multiple of ten. The slot is where the artwork should sit, not a tight box: the subject is fitted inside it, centered and aspect-preserved. A slot that is much larger than the final subject wastes sheet pixels; one that is much smaller makes the asset small and soft. Check the physical size: `slot width / ref width * figure width_mm`.
+Inspect the overview at full resolution and read each object's bounding box in its own pixels; round outward to a multiple of ten. The slot is where the artwork should sit, not a tight box: the subject is fitted inside it, aspect-preserved and centered (or anchored to the bottom or top edge with `slot.anchor`). A slot that is much larger than the final subject wastes sheet pixels; one that is much smaller makes the asset small and soft. Check the physical size: `slot width / ref width * figure width_mm`.
 
 ## What the pipeline writes next to it
 
