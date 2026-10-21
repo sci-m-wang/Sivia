@@ -38,7 +38,6 @@ IMAGEGEN = SCRIPT_DIR / "imagegen.mjs"
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,47}$")
 ROUTES = {"generate", "extract", "native", "data"}
 ANCHORS = {"center", "bottom", "top"}
-ANCHORS = {"center", "bottom", "top"}
 GRIDS = {1: (1, 1), 2: (2, 1), 3: (3, 1), 4: (2, 2), 5: (3, 2), 6: (3, 2), 7: (4, 2), 8: (4, 2), 9: (3, 3)}
 KEY_CANDIDATES = ["#00FF00", "#FF00FF", "#00FFFF", "#FFFF00", "#FF8000", "#0000FF"]
 DEFAULT_RASTER_REASON = (
@@ -145,8 +144,6 @@ def load_plan(path):
             if not (isinstance(box, list) and len(box) == 4 and all(isinstance(v, (int, float)) for v in box)
                     and box[2] > box[0] and box[3] > box[1]):
                 raise AssetError(f"{element_id}: slot.bbox_px must be [x0, y0, x1, y1] with x1>x0 and y1>y0")
-            if slot.get("anchor", "center") not in ANCHORS:
-                raise AssetError(f"{element_id}: slot.anchor must be one of {sorted(ANCHORS)}")
             if slot.get("anchor", "center") not in ANCHORS:
                 raise AssetError(f"{element_id}: slot.anchor must be one of {sorted(ANCHORS)}")
     figure = plan.setdefault("figure", {})
